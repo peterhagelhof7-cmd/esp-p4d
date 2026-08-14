@@ -33,6 +33,15 @@ Die UART-Pins sind in `firmware/src/main.cpp` als `P4_RX_PIN`/`P4_TX_PIN` einste
 
 ## Bauen & Flashen (Milestone 1)
 
+Am einfachsten mit dem Wrapper-Skript (installiert bei Bedarf Python/PlatformIO,
+baut, wartet aufs Board, flasht, öffnet den Monitor):
+
+```powershell
+tools\Flash.ps1 -Monitor
+```
+
+Oder direkt mit PlatformIO:
+
 ```
 cd firmware
 pio run                 # bauen
