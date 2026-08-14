@@ -1,0 +1,17 @@
+# PlatformIO
+firmware/.pio/
+firmware/.pio-core/
+.pio/
+
+# Build-Artefakte
+*.bin
+*.elf
+
+# lokale Konfiguration
+firmware/sdkconfig.*
+firmware/include/config.h
+
+# Editor/OS
+.vscode/
+.DS_Store
+Thumbs.db
