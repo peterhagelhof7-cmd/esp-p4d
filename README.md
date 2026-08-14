@@ -31,6 +31,10 @@ Portierung des seriellen COM1-Protokolls aus **[horchi/linux-p4d](https://github
 
 Die UART-Pins sind in `firmware/src/main.cpp` als `P4_RX_PIN`/`P4_TX_PIN` einstellbar.
 
+**Verdrahtungs-Anleitung als PDF:** [`verdrahtung.pdf`](verdrahtung.pdf) (Anschluss-Tabelle
++ Blockbild; Quelle: [`docs/verdrahtung.html`](docs/verdrahtung.html), mit Chrome
+`--print-to-pdf` regenerierbar).
+
 ## Bauen & Flashen (Milestone 1)
 
 Am einfachsten mit dem Wrapper-Skript (installiert bei Bedarf Python/PlatformIO,

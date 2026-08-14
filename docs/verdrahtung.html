@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>ESP-P4d Verdrahtung</title>
+<style>
+  @page { size: A4 portrait; margin: 16mm 15mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1c2430; font-size: 12px; line-height: 1.45; margin: 0; }
+  h1 { font-size: 20px; margin: 0 0 2px; }
+  .sub { color: #5b6472; font-size: 12.5px; margin: 0 0 14px; }
+  h2 { font-size: 13.5px; color: #1f4e9c; margin: 18px 0 6px; border-bottom: 2px solid #2a6fdb; padding-bottom: 3px; text-transform: uppercase; letter-spacing: .03em; }
+  table { border-collapse: collapse; width: 100%; margin: 4px 0 8px; }
+  th, td { border: 1px solid #cfd6e0; padding: 5px 9px; text-align: left; }
+  th { background: #eef1f6; }
+  code { background: #eef1f6; padding: 0 3px; border-radius: 3px; font-size: 11.5px; }
+  .dir { text-align: center; color: #2a6fdb; font-weight: 700; width: 34px; }
+  ul { margin: 4px 0 0; padding-left: 18px; }
+  li { margin: 3px 0; }
+  .warn { color: #c0392b; font-weight: 600; }
+  .legend { font-size: 11px; color: #5b6472; margin-top: 4px; }
+  svg { width: 100%; height: auto; }
+  .note { font-size: 11px; color: #5b6472; }
+</style>
+</head>
+<body>
+
+<h1>ESP-P4d &ndash; Verdrahtung</h1>
+<p class="sub">Wemos S2 Mini (ESP32-S2) &nbsp;&harr;&nbsp; MAX3232 &nbsp;&harr;&nbsp; Fr&ouml;ling Lambdatronic S3200, <b>COM1</b> (57600&nbsp;8N1, nur lesen)</p>
+
+<h2>1 &nbsp;Anschluss-Tabelle (verbindlich)</h2>
+
+<p class="note"><b>TTL-Seite</b> &ndash; ESP &harr; MAX3232 (Niederspannung, 3,3&nbsp;V):</p>
+<table>
+  <tr><th>Wemos S2 Mini</th><th class="dir"></th><th>MAX3232 (TTL-Seite)</th><th>Bemerkung</th></tr>
+  <tr><td><b>3V3</b></td><td class="dir">&rarr;</td><td>VCC</td><td class="warn">3,3&nbsp;V &ndash; NICHT 5&nbsp;V!</td></tr>
+  <tr><td><b>GND</b></td><td class="dir">&harr;</td><td>GND</td><td>gemeinsame Masse</td></tr>
+  <tr><td><b>GPIO17</b> (TX)</td><td class="dir">&rarr;</td><td>T1IN</td><td>ESP sendet</td></tr>
+  <tr><td><b>GPIO18</b> (RX)</td><td class="dir">&larr;</td><td>R1OUT</td><td>ESP empf&auml;ngt</td></tr>
+</table>
+
+<p class="note"><b>RS232-Seite</b> &ndash; MAX3232 &harr; Kessel COM1 (DB9, &plusmn;12&nbsp;V):</p>
+<table>
+  <tr><th>MAX3232 (RS232-Seite)</th><th class="dir"></th><th>Kessel COM1 (DB9)</th><th>Bemerkung</th></tr>
+  <tr><td>T1OUT</td><td class="dir">&rarr;</td><td>RXD (Kessel empf&auml;ngt)</td><td>oft DB9-Pin&nbsp;2</td></tr>
+  <tr><td>R1IN</td><td class="dir">&larr;</td><td>TXD (Kessel sendet)</td><td>oft DB9-Pin&nbsp;3</td></tr>
+  <tr><td>GND</td><td class="dir">&harr;</td><td>GND</td><td>DB9-Pin&nbsp;5</td></tr>
+</table>
+<p class="legend"><span class="warn">Wichtig:</span> Die exakte DB9-Pinbelegung h&auml;ngt vom Kessel ab. Kommt keine Antwort, <b>TXD&harr;RXD tauschen</b> (Null-Modem). GND immer verbinden.</p>
+
+<h2>2 &nbsp;Blockbild</h2>
+<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#2a6fdb"/>
+    </marker>
+    <marker id="arG" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#7a8290"/>
+    </marker>
+  </defs>
+
+  <!-- Boxes -->
+  <rect x="8"   y="40" width="180" height="240" rx="8" fill="#f5f8ff" stroke="#2a6fdb" stroke-width="1.5"/>
+  <rect x="270" y="40" width="180" height="240" rx="8" fill="#f5f8ff" stroke="#2a6fdb" stroke-width="1.5"/>
+  <rect x="532" y="40" width="180" height="240" rx="8" fill="#f5f8ff" stroke="#2a6fdb" stroke-width="1.5"/>
+
+  <text x="98"  y="30" text-anchor="middle" font-size="13" font-weight="700" fill="#1f4e9c">Wemos S2 Mini</text>
+  <text x="360" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="#1f4e9c">MAX3232</text>
+  <text x="622" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="#1f4e9c">Kessel COM1 (DB9)</text>
+
+  <!-- ESP pins (right edge x=188) -->
+  <text x="180" y="93"  text-anchor="end" font-size="12">3V3</text>
+  <text x="180" y="133" text-anchor="end" font-size="12">GND</text>
+  <text x="180" y="188" text-anchor="end" font-size="12">GPIO17 (TX)</text>
+  <text x="180" y="233" text-anchor="end" font-size="12">GPIO18 (RX)</text>
+
+  <!-- MAX left pins (x=278) -->
+  <text x="280" y="93"  text-anchor="start" font-size="12">VCC</text>
+  <text x="280" y="133" text-anchor="start" font-size="12">GND</text>
+  <text x="280" y="188" text-anchor="start" font-size="12">T1IN</text>
+  <text x="280" y="233" text-anchor="start" font-size="12">R1OUT</text>
+  <!-- MAX right pins (x=442) -->
+  <text x="442" y="113" text-anchor="end" font-size="12">T1OUT</text>
+  <text x="442" y="163" text-anchor="end" font-size="12">R1IN</text>
+  <text x="442" y="213" text-anchor="end" font-size="12">GND</text>
+
+  <!-- DB9 pins (x=540) -->
+  <text x="542" y="113" text-anchor="start" font-size="12">RXD (Pin&nbsp;2)</text>
+  <text x="542" y="163" text-anchor="start" font-size="12">TXD (Pin&nbsp;3)</text>
+  <text x="542" y="213" text-anchor="start" font-size="12">GND (Pin&nbsp;5)</text>
+
+  <!-- ESP <-> MAX wires (188 -> 270) -->
+  <line x1="188" y1="89"  x2="268" y2="89"  stroke="#c0392b" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="188" y1="129" x2="268" y2="129" stroke="#7a8290" stroke-width="2"/>
+  <line x1="188" y1="184" x2="268" y2="184" stroke="#2a6fdb" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="268" y1="229" x2="188" y2="229" stroke="#2a6fdb" stroke-width="2" marker-end="url(#ar)"/>
+
+  <!-- MAX <-> DB9 wires (450 -> 532) -->
+  <line x1="450" y1="109" x2="530" y2="109" stroke="#2a6fdb" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="530" y1="159" x2="450" y2="159" stroke="#2a6fdb" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="450" y1="209" x2="530" y2="209" stroke="#7a8290" stroke-width="2"/>
+
+  <text x="360" y="272" text-anchor="middle" font-size="10.5" fill="#5b6472">3,3&nbsp;V-Logik</text>
+  <text x="622" y="272" text-anchor="middle" font-size="10.5" fill="#5b6472">RS232 &plusmn;12&nbsp;V</text>
+</svg>
+<p class="legend">
+  <span style="color:#c0392b">&#9644;</span> 3,3&nbsp;V-Versorgung &nbsp;&nbsp;
+  <span style="color:#7a8290">&#9644;</span> GND &nbsp;&nbsp;
+  <span style="color:#2a6fdb">&#9644;</span> Datenleitung (Pfeil = Signalrichtung)
+</p>
+
+<h2>3 &nbsp;Hinweise</h2>
+<ul>
+  <li><span class="warn">MAX3232 mit 3,3&nbsp;V versorgen</span> (vom ESP-3V3-Pin) &ndash; keinesfalls 5&nbsp;V an ESP-Pins.</li>
+  <li>Schnittstelle: <b>COM1</b> (nativer Service-Port an der Geh&auml;userückseite), <b>57600&nbsp;Baud, 8N1</b>.</li>
+  <li><b>Nur ein Master auf COM1</b> &ndash; ein evtl. noch laufendes p4d (Raspberry Pi o.&auml;.) vorher abschalten.</li>
+  <li>Antwortet der Kessel nicht: <b>TXD&harr;RXD am DB9 tauschen</b> (Null-Modem), GND pr&uuml;fen.</li>
+  <li>UART-Pins im Code &auml;nderbar: <code>P4_RX_PIN&nbsp;18</code> / <code>P4_TX_PIN&nbsp;17</code> in <code>firmware/src/main.cpp</code>.</li>
+  <li>Betrieb ist <b>read-only</b> (Monitoring) &ndash; es werden nur Lese-Kommandos gesendet.</li>
+</ul>
+
+</body>
+</html>
