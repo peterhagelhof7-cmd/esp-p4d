@@ -6,8 +6,9 @@ auslesen und als eigenständiges Gerät (Weboberfläche + später MQTT) darstell
 
 Portierung des seriellen COM1-Protokolls aus **[horchi/linux-p4d](https://github.com/horchi/linux-p4d)**.
 
-> **Status:** Machbarkeitsanalyse abgeschlossen, **Milestone 1** (COM1-Protokoll-Modul +
-> Proof-of-Life) gebaut. Netz/Web/OTA/Historie(CSV)/MQTT folgen.
+> **Status v0.2.0:** COM1 (Zustand, Werte-Katalog, Werte, Fehlerpuffer), WLAN mit
+> Einrichtungs-Access-Point, Weboberfläche mit COM1-Konsole, Einstellungs-Backup, OTA und
+> API für home-central gebaut. **Am Kessel noch nicht getestet.** Historie (CSV) und MQTT folgen.
 > Siehe [`machbarkeitsanalyse.md`](machbarkeitsanalyse.md) und [`protokoll.md`](protokoll.md).
 
 ## Zielbild
@@ -35,7 +36,68 @@ Die UART-Pins sind in `firmware/src/main.cpp` als `P4_RX_PIN`/`P4_TX_PIN` einste
 + Blockbild; Quelle: [`docs/verdrahtung.html`](docs/verdrahtung.html), mit Chrome
 `--print-to-pdf` regenerierbar).
 
-## Bauen & Flashen (Milestone 1)
+## Einrichten (nur WLAN)
+
+1. Ohne eingerichtetes WLAN öffnet das Gerät das Einrichtungs-WLAN **`esp-p4d-setup`**
+   (Passwort **`esp-p4d-setup`**). Mit dem Handy verbinden – die Seite öffnet sich meist von
+   selbst, sonst **http://192.168.4.1**.
+2. **Einstellungen** (Benutzer `admin`, Passwort `admin`) → *Netze suchen* → WLAN wählen,
+   Passwort eingeben → *Verbinden*. Danach erreichbar unter **http://esp-p4d.local** (oder der
+   Adresse im Router). Das Einrichtungs-WLAN geht 30 s nach erfolgreicher Verbindung aus.
+3. Einstellungs-Passwort ändern (die Startseite erinnert daran).
+
+**Nie ausgesperrt:** Ist das WLAN 5 Minuten weg (oder falsch eingetragen), kommt
+`esp-p4d-setup` von selbst wieder. Das Gerät verbindet sich neu, sobald der Router wieder da ist
+(Versuch jede Minute, solange niemand am Einrichtungs-WLAN hängt).
+
+Hinweis Hardware: Der Wemos S2 Mini sendet mit 8,5 dBm statt voller Leistung – bei 19,5 dBm war
+sein Access-Point für andere Geräte unsichtbar. Reichweite am Einbauort prüfen (Signal steht
+auf der Startseite).
+
+## Weboberfläche
+
+| Seite | Inhalt |
+|---|---|
+| **Status** `/` | Verbindung zur Heizung, Betriebsart, Zustand, Störung, ausgewählte Werte, WLAN, Gerät |
+| **Werte** `/values` | alle Werte, die die Heizung meldet (Werte-Katalog); Haken = geht an home-central |
+| **Konsole** `/console` | COM1-Kommunikation live: jeder Rahmen gesendet/empfangen als Hex, Fehler rot; Ereignis-Log |
+| **Einstellungen** `/settings` | WLAN, Gerätename, Zeitserver, Passwort, API-Schlüssel, Werte-Katalog neu lesen, **Einstellungs-Backup** (Download/Einspielen), **Firmware-Update (OTA)**, Log, Neustart |
+
+Alles, was etwas ändert oder Geheimes zeigt, braucht den Benutzer `admin`.
+
+- **Einstellungs-Backup:** eine JSON-Datei mit allen Einstellungen **inkl.** WLAN-Passwort,
+  Einstellungs-Passwort und API-Schlüssel. Einspielen prüft die Datei und startet neu.
+- **OTA:** nimmt nur ESP-P4d-Images mit gleicher oder neuerer Version an (Kennung
+  `SM-FW-ID:ESP-P4D:<Version>` in der `.bin`); Einstellungen bleiben erhalten.
+- **USB-Konsole** (115200): `l` Ereignis-Log, `s` Kurzstatus, `w` WLAN-Suche, `j` API-JSON,
+  `c` COM1-Mitschnitt.
+
+## API für home-central
+
+Header **`X-API-Key: <Schlüssel>`** (steht unter *Einstellungen → API für home-central*,
+wird beim ersten Start zufällig erzeugt). Ohne/mit falschem Schlüssel: `401`.
+
+`GET /api/v1/summary` – Zustand und die ausgewählten Werte (ohne Auswahl: alle):
+
+```json
+{"ts":1760900000,"name":"ESP-P4d","online":true,"mode":"Automatik","state":"Heizen",
+ "error":null,"values":[{"k":"0x0000","n":"Kesseltemperatur","v":72.5,"u":"°C"}]}
+```
+
+- `ts` = Unix-Zeit (NTP), `null` solange die Uhr nicht gestellt ist
+- `online:false` = Heizung antwortet nicht auf COM1 → alle `v` sind `null`
+- `error` = Text der anstehenden Störung (neuester Eintrag im Fehlerpuffer mit Zustand
+  „gekommen“) – Auslegung am Kessel noch zu prüfen
+- `k` = Adresse im Kessel (stabil), `n`/`u` = Name/Einheit wie vom Kessel geliefert
+
+`GET /api/v1/values` – alle Werte mit Faktor `f`, Typ `t`, Rohwert `raw`, Alter `age` (s) und
+Auswahl `sel`. `GET /api/v1/status` – Gerät (Firmware, WLAN, Uhrzeit) und Kessel inkl.
+Fehlerpuffer.
+
+Abfrage: Zustand alle 10 s, Fehlerpuffer alle 5 min, alle Werte reihum (eine Runde dauert je
+nach Anzahl einige Sekunden). Ein Abruf durch home-central alle 15–60 s reicht.
+
+## Bauen & Flashen
 
 Am einfachsten mit dem Wrapper-Skript (installiert bei Bedarf Python/PlatformIO,
 baut, wartet aufs Board, flasht, öffnet den Monitor):
@@ -53,8 +115,12 @@ pio run -t upload       # flashen (Wemos S2 Mini per USB)
 pio device monitor      # Ausgabe (USB-CDC, 115200)
 ```
 
-Der Proof-of-Life fragt zyklisch `cmdCheck` (0x22) und `cmdGetVersion` (0x41) ab und meldet
-über den seriellen Monitor, ob die Verbindung steht und welche Kessel-Software-Version läuft.
+Danach geht es per OTA über die Weboberfläche (`firmware/.pio/build/lolin_s2_mini/firmware.bin`).
+
+Erstes Flashen einer anderen Firmware auf dem Board: Download-Modus = GPIO0 beim Einstecken auf
+GND (Taster „0“). Nach einem Absturz springt der S2 von selbst in den Download-Modus
+(USB-ID `303A:0002`); `esptool --chip esp32s2 --before no_reset --after watchdog_reset read_mac`
+startet die Firmware wieder.
 
 ## Lizenz
 

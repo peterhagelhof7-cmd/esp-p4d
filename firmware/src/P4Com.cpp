@@ -25,6 +25,7 @@ bool P4Com::readRaw(uint8_t& b, uint32_t timeoutMs) {
   while (millis() - start < timeoutMs) {
     if (_s.available()) {
       b = (uint8_t)_s.read();
+      if (_rxRawLen < (int)sizeof(_rxRaw)) _rxRaw[_rxRawLen++] = b;
       return true;
     }
     delay(1);
@@ -92,16 +93,25 @@ bool P4Com::sendFrame(uint8_t command, const uint8_t* payload, int payloadLen) {
 
   _s.write(out, o);
   _s.flush();
+  if (_hook) _hook(true, command, out, o, true);
   return true;
 }
 
 bool P4Com::transact(uint8_t command, const uint8_t* payload, int payloadLen,
                      uint8_t* resp, int respMax, int& respLen, uint32_t timeoutMs) {
+  bool ok = transactInner(command, payload, payloadLen, resp, respMax, respLen, timeoutMs);
+  if (_hook) _hook(false, command, _rxRaw, _rxRawLen, ok);
+  return ok;
+}
+
+bool P4Com::transactInner(uint8_t command, const uint8_t* payload, int payloadLen,
+                          uint8_t* resp, int respMax, int& respLen, uint32_t timeoutMs) {
   respLen = 0;
 
   while (_s.available()) _s.read();       // evtl. Restbytes verwerfen
 
   if (!sendFrame(command, payload, payloadLen)) return false;
+  _rxRawLen = 0;
 
   // Antwort-Header: id (roh, 2 B) muss commId 0x02FD sein
   uint8_t idHi, idLo;
@@ -150,7 +160,97 @@ bool P4Com::getValue(uint16_t address, int16_t& value) {
   uint8_t resp[264];
   int len;
   if (!transact(cmdGetValue, payload, 2, resp, sizeof(resp), len)) return false;
-  if (len < 5) return false;              // address(2) + value(2) + crc(1)
-  value = (int16_t)((resp[2] << 8) | resp[3]);
+  // p4io.c getValue: Antwort = value(2) + crc(1). Liefert ein Kessel zusaetzlich
+  // die Adresse davor (address(2) + value(2) + crc), wird sie uebersprungen.
+  if (len == 3) value = (int16_t)((resp[0] << 8) | resp[1]);
+  else if (len >= 5) value = (int16_t)((resp[2] << 8) | resp[3]);
+  else return false;
   return true;
+}
+
+void P4Com::latin1ToUtf8(const uint8_t* in, int len, char* out, size_t outSize) {
+  size_t o = 0;
+  for (int i = 0; i < len && o + 1 < outSize; i++) {
+    uint8_t c = in[i];
+    if (c == 0x00 || c == 0x01 || c == 0x02 || c == 0x03) continue;
+    if (c < 0x80) {
+      out[o++] = (char)c;
+    } else {
+      if (o + 2 >= outSize) break;
+      out[o++] = (char)(0xC0 | (c >> 6));
+      out[o++] = (char)(0x80 | (c & 0x3F));
+    }
+  }
+  out[o] = 0;
+  while (o > 0 && out[o - 1] == ' ') out[--o] = 0;  // wie allTrim()
+  size_t lead = 0;
+  while (out[lead] == ' ') lead++;
+  if (lead) memmove(out, out + lead, strlen(out + lead) + 1);
+}
+
+// p4io.c getStatus: mode(1) state(1) text "Betriebsart;Zustand" crc(1)
+bool P4Com::getState(uint8_t& mode, uint8_t& state, char* modeText, size_t modeSize, char* stateText,
+                     size_t stateSize) {
+  uint8_t resp[264];
+  int len;
+  if (!transact(cmdGetState, nullptr, 0, resp, sizeof(resp), len)) return false;
+  if (len < 3) return false;
+  mode = resp[0];
+  state = resp[1];
+  char text[160];
+  latin1ToUtf8(resp + 2, len - 3, text, sizeof(text));
+  char* sep = strchr(text, ';');
+  if (!sep) return false;  // p4d: "Communication error"
+  *sep = 0;
+  // Kessel kuerzt auf "\xC3\x9Cbergangsbetr" (p4io.c ersetzt das ebenso)
+  strlcpy(modeText, strcmp(text, "\xC3\x9C" "bergangsbetr") == 0 ? "\xC3\x9C" "bergangsbetrieb" : text, modeSize);
+  strlcpy(stateText, sep + 1, stateSize);
+  return true;
+}
+
+// p4io.c getValueSpec: more(1); bei more: factor(2) type(2) unit(2) address(2)
+// description(n) termination(1) crc(1). Kurze Eintraege (< 11 Byte) = leer.
+P4Com::ListResult P4Com::getValueSpec(bool first, ValueSpec& v) {
+  uint8_t resp[264];
+  int len;
+  if (!transact(first ? cmdGetValueListFirst : cmdGetValueListNext, nullptr, 0, resp, sizeof(resp), len))
+    return listFail;
+  if (len < 2) return listFail;
+  if (!resp[0]) return listEnd;
+  if (len < 11) return listSkip;
+  v.factor = (resp[1] << 8) | resp[2];
+  if (v.factor == 0) v.factor = 1;
+  v.type = (resp[3] << 8) | resp[4];
+  latin1ToUtf8(resp + 5, 2, v.unit, sizeof(v.unit));
+  v.address = (resp[7] << 8) | resp[8];
+  int descLen = len - 9 - 2;  // ohne termination + crc
+  latin1ToUtf8(resp + 9, descLen > 0 ? descLen : 0, v.description, sizeof(v.description));
+  if (!v.unit[0]) {
+    // Einheit notfalls aus der Beschreibung "... [°C]" (wie p4io.c)
+    const char* a = strchr(v.description, '[');
+    const char* b = a ? strchr(a, ']') : nullptr;
+    if (a && b && b - a - 1 > 0 && (size_t)(b - a - 1) < sizeof(v.unit)) {
+      memcpy(v.unit, a + 1, b - a - 1);
+      v.unit[b - a - 1] = 0;
+    }
+  }
+  return listOk;
+}
+
+// p4io.c getError: more(1); bei more: number(2) info(1) state(1)
+// time s,m,h(3) date d,m,y(3) text(n) crc(1)
+P4Com::ListResult P4Com::getError(bool first, ErrorInfo& e) {
+  uint8_t resp[264];
+  int len;
+  if (!transact(first ? cmdGetErrorFirst : cmdGetErrorNext, nullptr, 0, resp, sizeof(resp), len)) return listFail;
+  if (len < 2) return listFail;
+  if (!resp[0]) return listEnd;
+  if (len < 12) return listSkip;
+  e.number = (resp[1] << 8) | resp[2];
+  e.info = resp[3];
+  e.state = resp[4];
+  snprintf(e.time, sizeof(e.time), "%02u.%02u.%02u %02u:%02u:%02u", resp[8], resp[9], resp[10], resp[7], resp[6],
+           resp[5]);
+  latin1ToUtf8(resp + 11, len - 12, e.text, sizeof(e.text));
+  return listOk;
 }
