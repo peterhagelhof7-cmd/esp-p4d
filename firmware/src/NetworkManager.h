@@ -16,6 +16,9 @@
 //    wechselt den Kanal und wuerde ihn trennen).
 //  - steht die Verbindung 30 s stabil, geht der Access-Point wieder aus.
 // Hostname/mDNS aus dem Systemnamen: http://esp-p4d.local
+// Feste IP (Mechanik wie esp-meshcore-gateway E40): bekannte Adresse wird beim
+// Start sofort gesetzt; eine NEUE erst nach DHCP-Anmeldung, Belegt-Pruefung
+// (ARP+Ping), Umschalten und Router-Pruefung - sonst zurueck auf DHCP.
 class NetworkManager {
  public:
   explicit NetworkManager(ConfigManager& config) : _config(config) {}
@@ -28,6 +31,8 @@ class NetworkManager {
 
   bool isConnected() const { return WiFi.status() == WL_CONNECTED; }
   bool isApActive() const { return _apActive; }
+  bool staticActive() const { return _staticActive; }
+  String ipNote() const;
   String apSsid() const { return _apSsid; }
   String hostname() const { return _hostname; }
 
@@ -51,6 +56,17 @@ class NetworkManager {
   bool _connectRequested = false;
   String _newSsid;
   String _newPsk;
+
+  enum class IpPhase : uint8_t { NONE, WAIT_DHCP, CHECK_ADDR, SETTLE, CHECK_GW };
+  IpPhase _ipPhase = IpPhase::NONE;
+  unsigned long _ipPhaseMs = 0;
+  bool _staticActive = false;
+  char _ipNote[112] = "";
+  mutable portMUX_TYPE _noteMux = portMUX_INITIALIZER_UNLOCKED;
+  void setIpNote(const String& n);
+  void applyStaticIp();
+  void useDhcp();
+  void ipCheckLoop(unsigned long now);
 
   void startAp();
   void stopAp();

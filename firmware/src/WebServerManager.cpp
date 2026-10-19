@@ -5,6 +5,7 @@
 
 #include "ComMonitor.h"
 #include "Log.h"
+#include "NetCheck.h"
 #include "WebPages.h"
 #include "version.h"
 
@@ -38,7 +39,7 @@ String WebServerManager::deviceJson() {
   JsonDocument doc;
   doc["systemName"] = c.systemName;
   doc["firmware"] = DEVICE_FIRMWARE_VERSION;
-  doc["uptime"] = millis() / 1000;
+  doc["uptime"] = Log::uptimeMs() / 1000;
   doc["heap"] = ESP.getFreeHeap();
   doc["time"] = (unsigned long)validTime();
   doc["defaultPassword"] = c.settingsPassword == "admin";
@@ -49,6 +50,8 @@ String WebServerManager::deviceJson() {
   w["ip"] = WiFi.localIP().toString();
   w["rssi"] = WiFi.RSSI();
   w["hostname"] = _net.hostname();
+  w["static"] = _net.staticActive();
+  w["ipNote"] = _net.ipNote();
   JsonObject ap = doc["ap"].to<JsonObject>();
   ap["active"] = _net.isApActive();
   ap["ssid"] = _net.apSsid();
@@ -257,6 +260,22 @@ void WebServerManager::begin() {
     doc["ntpServer"] = _config.getConfig().ntpServer;
     doc["apiKey"] = _config.getConfig().apiKey;
     doc["wlanSsid"] = _config.getConfig().wlanSsid;
+    // Feste IP: Einstellung + aktuelle Werte (zum Vorbelegen der Felder)
+    const DeviceConfig& c = _config.getConfig();
+    JsonObject ip = doc["ip"].to<JsonObject>();
+    ip["addr"] = c.ipAddr;
+    ip["mask"] = c.ipMask;
+    ip["gw"] = c.ipGw;
+    ip["dns1"] = c.ipDns1;
+    ip["dns2"] = c.ipDns2;
+    ip["pending"] = c.ipPendingCheck;
+    ip["static"] = _net.staticActive();
+    ip["note"] = _net.ipNote();
+    bool sta = _net.isConnected();
+    ip["curAddr"] = sta ? WiFi.localIP().toString() : String();
+    ip["curMask"] = sta ? WiFi.subnetMask().toString() : String();
+    ip["curGw"] = sta ? WiFi.gatewayIP().toString() : String();
+    ip["curDns"] = sta ? WiFi.dnsIP(0).toString() : String();
     String out;
     serializeJson(doc, out);
     r->send(200, "application/json", out);
@@ -286,6 +305,53 @@ void WebServerManager::begin() {
     _config.setConfig(c);
     Log::add("Neuer API-Schluessel erzeugt");
     r->send(200, "text/plain", c.apiKey);
+  });
+  // Feste IP (Mechanik wie esp-meshcore-gateway E40): ip leer = DHCP. Gilt nach
+  // dem Neustart; eine neue Adresse wird dann erst geprueft (NetworkManager).
+  _server.on(AsyncURIMatcher::exact("/api/network"), HTTP_POST, [this](AsyncWebServerRequest* r) {
+    if (!checkAuth(r)) return;
+    auto p = [r](const char* n) { return r->hasParam(n, true) ? r->getParam(n, true)->value() : String(); };
+    DeviceConfig c = _config.getConfig();
+    String err;
+    if (!ConfigManager::applyIp(c, p("ip"), p("mask"), p("gw"), p("dns1"), p("dns2"), err)) {
+      r->send(400, "text/plain", err + " - nichts gespeichert.");
+      return;
+    }
+    if (c.staticIp()) c.ipPendingCheck = true;  // auch gleiche Adresse: beim Start neu pruefen
+    _config.setConfig(c);
+    Log::add("Adressvergabe gespeichert: %s, Neustart", c.staticIp() ? ("feste IP " + c.ipAddr).c_str() : "DHCP");
+    r->send(200, "text/plain",
+            c.staticIp() ? "Gespeichert, Geraet startet neu. Es meldet sich erst per DHCP an, prueft die Adresse und "
+                           "schaltet dann auf " + c.ipAddr + " um (Ergebnis im Ereignis-Log)."
+                         : String("Gespeichert, Geraet startet neu und holt sich die Adresse per DHCP."));
+    scheduleRestart();
+  });
+  // Vorab-Pruefung, ob eine Adresse belegt ist: POST startet, GET liefert den Stand.
+  _server.on(AsyncURIMatcher::exact("/api/checkip"), HTTP_POST, [this](AsyncWebServerRequest* r) {
+    if (!checkAuth(r)) return;
+    IPAddress ip;
+    String s = r->hasParam("ip", true) ? r->getParam("ip", true)->value() : String();
+    s.trim();
+    if (!ip.fromString(s)) {
+      r->send(400, "text/plain", "IP-Adresse ungueltig");
+      return;
+    }
+    if (!net_check::probe(ip)) {
+      r->send(409, "text/plain", "Es laeuft schon eine Pruefung, gleich noch einmal");
+      return;
+    }
+    r->send(200, "text/plain", "ok");
+  });
+  _server.on(AsyncURIMatcher::exact("/api/checkip"), HTTP_GET, [this](AsyncWebServerRequest* r) {
+    if (!checkAuth(r)) return;
+    char detail[48];
+    net_check::State st = net_check::result(detail, sizeof(detail));
+    JsonDocument doc;
+    doc["state"] = net_check::stateName(st);
+    doc["detail"] = detail;
+    String out;
+    serializeJson(doc, out);
+    r->send(200, "application/json", out);
   });
   _server.on(AsyncURIMatcher::exact("/api/rescan"), HTTP_POST, [this](AsyncWebServerRequest* r) {
     if (!checkAuth(r)) return;

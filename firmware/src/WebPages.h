@@ -81,7 +81,7 @@ $('k_mode').textContent=k.mode||'–';$('k_state').textContent=k.state||'–';
 const e=(k.errors||[])[0];$('k_err').innerHTML=e&&e.state==1?'<span class="bad">'+esc(e.text)+'</span> <span class="mute">('+esc(e.time)+')</span>':'keine';
 $('k_ver').textContent=k.version||'–';$('k_last').textContent=k.lastOkAgo<0?'noch nie':'vor '+k.lastOkAgo+' s';
 $('w_ssid').innerHTML=d.wlan.connected?esc(d.wlan.ssid):'<span class="bad">nicht verbunden</span>';
-$('w_ip').textContent=d.wlan.connected?d.wlan.ip:'–';$('w_rssi').textContent=d.wlan.connected?d.wlan.rssi+' dBm':'–';
+$('w_ip').textContent=d.wlan.connected?d.wlan.ip+(d.wlan.static?' (fest)':' (DHCP)'):'–';$('w_rssi').textContent=d.wlan.connected?d.wlan.rssi+' dBm':'–';
 $('w_host').textContent='http://'+d.wlan.hostname+'.local';
 $('d_fw').textContent=d.firmware;$('d_up').textContent=dur(d.uptime);$('d_heap').textContent=Math.round(d.heap/1024)+' KB';
 $('d_time').textContent=d.time?new Date(d.time*1000).toLocaleString('de-DE'):'noch nicht gestellt (NTP)';
@@ -148,6 +148,18 @@ static const char kSettingsPage[] PROGMEM = P4_HEAD("Einstellungen", NAV_E) R"HT
 <label for="ssid">Netzwerk (SSID)</label><input id="ssid" list="nets" autocomplete="off"><datalist id="nets"></datalist>
 <label for="psk">Passwort</label><input id="psk" type="password" autocomplete="new-password">
 <button id="wsave">Verbinden</button><p class="hint" id="wmsg"></p></div>
+<div class="card"><h2>IP-Adresse</h2>
+<p class="hint" id="ipcur"></p>
+<label><input type="checkbox" id="ipfix"> feste IP-Adresse (sonst DHCP)</label>
+<div id="ipf" hidden>
+<label for="ipa">IP-Adresse</label><input id="ipa" class="mono">
+<label for="ipm">Subnetzmaske</label><input id="ipm" class="mono">
+<label for="ipg">Gateway (Router)</label><input id="ipg" class="mono">
+<label for="ipd1">DNS 1 (leer = Router)</label><input id="ipd1" class="mono">
+<label for="ipd2">DNS 2 (optional)</label><input id="ipd2" class="mono">
+<button class="sec" id="ipchk">Adresse pr&uuml;fen</button></div>
+<button id="ipsave">Speichern &amp; Neustart</button><p class="hint" id="ipmsg"></p>
+<p class="hint">Vor dem Speichern pr&uuml;ft das Ger&auml;t per ARP und Ping, ob die Adresse schon belegt ist. Nach dem Neustart meldet es sich <b>erst per DHCP</b> an, pr&uuml;ft die Adresse noch einmal, schaltet um und testet den Router. Ist die Adresse belegt oder der Router nicht erreichbar, <b>bleibt es bei DHCP</b> (Grund im Ereignis-Log). Adresse am besten au&szlig;erhalb des DHCP-Bereichs des Routers w&auml;hlen.</p></div>
 <div class="card"><h2>Ger&auml;t</h2>
 <label for="sname">Ger&auml;tename (daraus wird der Name im Netz, z. B. esp-p4d.local &ndash; wirkt nach Neustart)</label><input id="sname">
 <label for="ntp">Zeitserver (NTP), z. B. home-central oder pool.ntp.org &ndash; wirkt nach Neustart</label><input id="ntp">
@@ -172,7 +184,26 @@ static const char kSettingsPage[] PROGMEM = P4_HEAD("Einstellungen", NAV_E) R"HT
 <div class="card"><h2>Ereignisse</h2><pre id="log"></pre><button class="sec" onclick="location.href='/log.txt'">log.txt herunterladen</button></div>
 <div class="card"><button class="danger" id="reboot">Neu starten</button></div>
 </main><script>)HTML" P4_JS_COMMON R"HTML(
-fetch('/api/settings',{cache:'no-store'}).then(r=>r.json()).then(s=>{$('sname').value=s.systemName;$('ntp').value=s.ntpServer;$('ssid').value=s.wlanSsid||'';$('key').value=s.apiKey;$('name').textContent=s.systemName});
+let ipcfg={};
+fetch('/api/settings',{cache:'no-store'}).then(r=>r.json()).then(s=>{$('sname').value=s.systemName;$('ntp').value=s.ntpServer;$('ssid').value=s.wlanSsid||'';$('key').value=s.apiKey;$('name').textContent=s.systemName;
+ ipcfg=s.ip;const i=s.ip;$('ipcur').innerHTML='Aktuell: '+(i.curAddr?esc(i.curAddr)+' ('+(i.static?'fest':'DHCP')+')':'nicht im WLAN')+(i.note?'<br>'+esc(i.note):'')+(i.pending?'<br>Neue feste IP '+esc(i.addr)+' wird beim nächsten Start geprüft.':'');
+ $('ipfix').checked=!!i.addr;ipFill(!!i.addr)});
+function ipFill(fix){$('ipf').hidden=!fix;const i=ipcfg;
+ $('ipa').value=i.addr||i.curAddr||'';$('ipm').value=i.mask||i.curMask||'255.255.255.0';$('ipg').value=i.gw||i.curGw||'';$('ipd1').value=i.dns1||'';$('ipd2').value=i.dns2||''}
+$('ipfix').onchange=()=>ipFill($('ipfix').checked);
+// Belegt-Pruefung: POST startet, GET bis fertig. Liefert {state,detail}.
+async function ipCheck(ip){const r=await fetch('/api/checkip',{method:'POST',body:new URLSearchParams({ip})});if(!r.ok)throw new Error(await r.text());
+ for(let k=0;k<20;k++){await new Promise(x=>setTimeout(x,500));const s=await (await fetch('/api/checkip',{cache:'no-store'})).json();if(s.state!='running')return s}
+ throw new Error('Prüfung hängt')}
+const ipText=s=>({present:'belegt – '+s.detail,absent:'frei (keine Antwort auf ARP und Ping)',own:'das ist die aktuelle Adresse des Geräts',uncheckable:'nicht prüfbar: '+s.detail})[s.state]||s.state;
+$('ipchk').onclick=async()=>{$('ipmsg').textContent='prüfe '+$('ipa').value+' ...';try{$('ipmsg').textContent=$('ipa').value+': '+ipText(await ipCheck($('ipa').value.trim()))}catch(e){$('ipmsg').textContent=e.message}};
+$('ipsave').onclick=async()=>{const fix=$('ipfix').checked,d={ip:fix?$('ipa').value.trim():''};
+ if(fix){Object.assign(d,{mask:$('ipm').value.trim(),gw:$('ipg').value.trim(),dns1:$('ipd1').value.trim(),dns2:$('ipd2').value.trim()});
+  if(d.ip!=ipcfg.curAddr){$('ipmsg').textContent='prüfe '+d.ip+' ...';let s;try{s=await ipCheck(d.ip)}catch(e){$('ipmsg').textContent=e.message;return}
+   if(s.state=='present'){$('ipmsg').textContent=d.ip+' ist belegt ('+s.detail+') – nicht gespeichert.';return}
+   if(s.state=='uncheckable'&&!confirm('Adresse kann von hier nicht geprüft werden ('+s.detail+'). Trotzdem speichern? Beim Start wird sie noch einmal geprüft.'))return}}
+ if(!confirm(fix?'Feste IP '+d.ip+' speichern und neu starten?':'Auf DHCP umstellen und neu starten?'))return;
+ post('/api/network',d).then(t=>$('ipmsg').textContent=t).catch(e=>$('ipmsg').textContent=e.message)};
 fetch('/log.txt',{cache:'no-store'}).then(r=>r.text()).then(t=>{$('log').textContent=t});
 $('scan').onclick=async()=>{$('scan').disabled=true;$('wmsg').textContent='suche ...';
  for(let i=0;i<15;i++){const r=await (await fetch('/api/wifi/scan',{cache:'no-store'})).json();

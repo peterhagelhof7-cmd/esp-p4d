@@ -16,7 +16,8 @@
 //                           Firmware-Update, Neustart (admin)
 //   GET  /api/status, /api/values                 fuer die Seiten
 //   GET  /api/console?since=N, /api/settings, /api/backup, /log.txt   (admin)
-//   POST /api/wifi/connect, /api/config, /api/selection, /api/apikey,
+//   POST /api/wifi/connect, /api/network (feste IP), /api/checkip, /api/config,
+//        /api/selection, /api/apikey,
 //        /api/rescan, /api/restore, /api/reboot, /update               (admin)
 // Maschinen-API fuer home-central (Header X-API-Key):
 //   GET  /api/v1/summary    Zustand + ausgewaehlte Werte (leer = alle)

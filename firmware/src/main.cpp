@@ -39,6 +39,7 @@ KesselManager kessel(p4);
 WebServerManager webServer(configManager, networkManager, otaManager, kessel);
 
 void setup() {
+  Log::markBoot();
   Serial.begin(115200);   // USB-CDC (Debug-Ausgabe)
   delay(1500);            // dem USB-CDC Zeit geben, sich zu verbinden
   Serial.printf("\n=== ESP-P4d %s ===\n", DEVICE_FIRMWARE_VERSION);

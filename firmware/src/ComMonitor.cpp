@@ -2,6 +2,8 @@
 
 #include <mutex>
 
+#include "Log.h"
+
 namespace {
 constexpr int kEntries = 120;
 constexpr int kMaxBytes = 64;  // laengere Rahmen werden gekuerzt angezeigt
@@ -42,7 +44,7 @@ void record(bool tx, uint8_t command, const uint8_t* raw, int len, bool ok) {
   std::lock_guard<std::mutex> lock(g_mu);
   Entry& e = g_buf[g_nextSeq % kEntries];
   e.seq = g_nextSeq++;
-  e.ms = millis();
+  e.ms = Log::uptimeMs();
   e.tx = tx;
   e.ok = ok;
   e.command = command;

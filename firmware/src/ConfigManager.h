@@ -15,8 +15,11 @@
 //   "apiKey": "<32 Hex-Zeichen>",
 //   "ntpServer": "pool.ntp.org",
 //   "summary": ["0x0000", ...],          // Werte fuer /api/v1/summary (leer = alle)
-//   "wlan": {"ssid": "", "psk": ""}
+//   "wlan": {"ssid": "", "psk": "",
+//            "ip": "", "mask": "", "gw": "", "dns1": "", "dns2": "", "ipCheck": false}
 // }
+// Feste IP wie beim esp-meshcore-gateway (E40): ip leer = DHCP; ipCheck = neue
+// Adresse beim naechsten Start erst pruefen (siehe NetworkManager).
 
 struct DeviceConfig {
   String systemName = "ESP-P4d";
@@ -30,6 +33,12 @@ struct DeviceConfig {
   std::vector<uint16_t> summary;
   String wlanSsid;
   String wlanPsk;
+  // Feste IP: ipAddr leer = DHCP, dns1 leer = Router als DNS.
+  String ipAddr, ipMask, ipGw, ipDns1, ipDns2;
+  // Einmal-Flag: neue feste IP beim naechsten Verbinden erst per DHCP ins Netz,
+  // Adresse auf Belegung pruefen, umschalten, Router pruefen; bei Fehler DHCP.
+  bool ipPendingCheck = false;
+  bool staticIp() const { return ipAddr.length() > 0; }
 };
 
 class ConfigManager {
@@ -51,6 +60,11 @@ class ConfigManager {
   bool restoreJson(const String& json, String& error);
 
   static String randomKey();
+
+  // Feste IP pruefen und normiert in cfg uebernehmen (ip leer = DHCP). false +
+  // Grund bei ungueltigen Werten. Neue Adresse setzt ipPendingCheck.
+  static bool applyIp(DeviceConfig& cfg, const String& ip, const String& mask, const String& gw,
+                      const String& dns1, const String& dns2, String& error);
 
  private:
   DeviceConfig _config;

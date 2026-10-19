@@ -6,7 +6,7 @@ auslesen und als eigenständiges Gerät (Weboberfläche + später MQTT) darstell
 
 Portierung des seriellen COM1-Protokolls aus **[horchi/linux-p4d](https://github.com/horchi/linux-p4d)**.
 
-> **Status v0.2.0:** COM1 (Zustand, Werte-Katalog, Werte, Fehlerpuffer), WLAN mit
+> **Status v0.2.1:** COM1 (Zustand, Werte-Katalog, Werte, Fehlerpuffer), WLAN mit
 > Einrichtungs-Access-Point, Weboberfläche mit COM1-Konsole, Einstellungs-Backup, OTA und
 > API für home-central gebaut. **Am Kessel noch nicht getestet.** Historie (CSV) und MQTT folgen.
 > Siehe [`machbarkeitsanalyse.md`](machbarkeitsanalyse.md) und [`protokoll.md`](protokoll.md).
@@ -49,6 +49,14 @@ Die UART-Pins sind in `firmware/src/main.cpp` als `P4_RX_PIN`/`P4_TX_PIN` einste
 **Nie ausgesperrt:** Ist das WLAN 5 Minuten weg (oder falsch eingetragen), kommt
 `esp-p4d-setup` von selbst wieder. Das Gerät verbindet sich neu, sobald der Router wieder da ist
 (Versuch jede Minute, solange niemand am Einrichtungs-WLAN hängt).
+
+**Feste IP-Adresse** (ab 0.2.1, sonst DHCP; Mechanik wie beim esp-meshcore-gateway): *Einstellungen →
+IP-Adresse*, Haken „feste IP-Adresse“. Die Felder sind mit den aktuellen DHCP-Werten vorbelegt; DNS 1 leer =
+Router. Vor dem Speichern prüft das Gerät per ARP und Ping, ob die Adresse belegt ist (belegt → wird nicht
+gespeichert). Nach dem Neustart meldet es sich **erst per DHCP** an, prüft die Adresse noch einmal, schaltet um
+und testet den Router. Belegt oder Router stumm → es **bleibt bei DHCP**, die feste IP wird verworfen (Grund im
+Ereignis-Log und unter *IP-Adresse*). Eine Adresse aus einem eingespielten Backup wird beim Start immer neu
+geprüft. Adresse am besten außerhalb des DHCP-Bereichs des Routers wählen.
 
 Hinweis Hardware: Der Wemos S2 Mini sendet mit 8,5 dBm statt voller Leistung – bei 19,5 dBm war
 sein Access-Point für andere Geräte unsichtbar. Reichweite am Einbauort prüfen (Signal steht
