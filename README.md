@@ -6,7 +6,7 @@ auslesen und als eigenständiges Gerät (Weboberfläche + später MQTT) darstell
 
 Portierung des seriellen COM1-Protokolls aus **[horchi/linux-p4d](https://github.com/horchi/linux-p4d)**.
 
-> **Status v0.2.2:** COM1 (Zustand, Werte-Katalog, Werte, Fehlerpuffer), WLAN mit
+> **Status v0.2.3:** COM1 (Zustand, Werte-Katalog, Werte, Fehlerpuffer), WLAN mit
 > Einrichtungs-Access-Point, Weboberfläche mit COM1-Konsole, Einstellungs-Backup, OTA und
 > API für home-central gebaut. **Seit 2026-10-23 am Kessel (S3200, SW 50.04.05.07) im Betrieb.** Historie (CSV) und MQTT folgen.
 > Siehe [`machbarkeitsanalyse.md`](machbarkeitsanalyse.md) und [`protokoll.md`](protokoll.md).
@@ -97,7 +97,7 @@ wird beim ersten Start zufällig erzeugt). Ohne/mit falschem Schlüssel: `401`.
 - `error` = Text der anstehenden Störung: neuester Eintrag „gekommen“ (Zustand 1), zu dem
   danach kein „gegangen“ (4) derselben Nummer kam; „quittiert“ (2) allein beendet sie nicht
 - `k` = Adresse im Kessel (stabil), `n`/`u` = Name/Einheit wie vom Kessel geliefert (nur „°“
-  wird zu „°C“); jede Adresse kommt nur einmal vor (der Kessel-Katalog enthält Dubletten)
+  wird zu „°C“, „k“ zu „kg“); jede Adresse kommt nur einmal vor (der Kessel-Katalog enthält Dubletten)
 - `v` = `null` auch bei nicht angeschlossenem Fühler (Kessel meldet dann 127,0 °C)
 
 `GET /api/v1/values` – alle Werte mit Faktor `f`, Typ `t`, Rohwert `raw`, Alter `age` (s),

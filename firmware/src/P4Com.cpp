@@ -234,8 +234,9 @@ P4Com::ListResult P4Com::getValueSpec(bool first, ValueSpec& v) {
       v.unit[b - a - 1] = 0;
     }
   }
-  // S3200 liefert bei Temperaturen nur "°" (2 Byte Einheit)
+  // S3200 kuerzt Einheiten: Temperaturen nur "°", Holzmenge (0x010A) nur "k"
   if (strcmp(v.unit, "\xC2\xB0") == 0) strlcpy(v.unit, "\xC2\xB0" "C", sizeof(v.unit));
+  else if (strcmp(v.unit, "k") == 0) strlcpy(v.unit, "kg", sizeof(v.unit));
   return listOk;
 }
 
