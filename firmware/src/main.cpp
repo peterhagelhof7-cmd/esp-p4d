@@ -16,6 +16,7 @@
 #include "NetworkManager.h"
 #include "OtaManager.h"
 #include "P4Com.h"
+#include "Vitals.h"
 #include "WebServerManager.h"
 #include "version.h"
 
@@ -49,6 +50,7 @@ void setup() {
   configManager.begin();
 
   Log::add("Start, Firmware %s, COM1: RX=GPIO%d TX=GPIO%d", DEVICE_FIRMWARE_VERSION, P4_RX_PIN, P4_TX_PIN);
+  Vitals::begin();
   networkManager.begin();
   webServer.begin();
   p4.setTrafficHook(ComMonitor::record);
@@ -121,5 +123,6 @@ void loop() {
   otaManager.checkStalled();
   startNtpOnce();
   kessel.loop();
+  Vitals::loop();
   delay(2);
 }

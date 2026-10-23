@@ -6,6 +6,7 @@
 #include "ComMonitor.h"
 #include "Log.h"
 #include "NetCheck.h"
+#include "Vitals.h"
 #include "WebPages.h"
 #include "version.h"
 
@@ -52,6 +53,13 @@ String WebServerManager::deviceJson() {
   w["hostname"] = _net.hostname();
   w["static"] = _net.staticActive();
   w["ipNote"] = _net.ipNote();
+  if (_net.isConnected()) {
+    w["bssid"] = WiFi.BSSIDstr();
+    w["channel"] = WiFi.channel();
+  }
+  w["reconnects"] = _net.reconnects();
+  w["connectedFor"] = _net.connectedForSec();
+  Vitals::toJson(doc["vital"].to<JsonObject>());
   JsonObject ap = doc["ap"].to<JsonObject>();
   ap["active"] = _net.isApActive();
   ap["ssid"] = _net.apSsid();

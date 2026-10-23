@@ -229,6 +229,8 @@ void NetworkManager::loop() {
 
   if (connected && !_wasConnected) {
     _connectedSinceMs = now;
+    if (_everConnected) _reconnects++;
+    _everConnected = true;
     Log::add("WLAN verbunden: %s, IP %s, Signal %d dBm", WiFi.SSID().c_str(),
              WiFi.localIP().toString().c_str(), WiFi.RSSI());
     if (!_mdnsStarted && MDNS.begin(_hostname.c_str())) {

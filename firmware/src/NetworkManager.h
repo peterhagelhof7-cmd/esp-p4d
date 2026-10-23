@@ -35,6 +35,9 @@ class NetworkManager {
   String ipNote() const;
   String apSsid() const { return _apSsid; }
   String hostname() const { return _hostname; }
+  // Vitalwerte: Verbindungsabbrueche seit Start, Sekunden seit der letzten Verbindung (-1 = getrennt)
+  uint32_t reconnects() const { return _reconnects; }
+  long connectedForSec() const { return _wasConnected ? (long)((millis() - _connectedSinceMs) / 1000) : -1; }
 
   // Leitet aus dem Systemnamen einen DNS-/mDNS-tauglichen Hostnamen ab (a-z/0-9/-).
   static String sanitizeHostname(const String& name);
@@ -52,6 +55,8 @@ class NetworkManager {
   unsigned long _connectStartMs = 0;
   unsigned long _connectedSinceMs = 0;
   unsigned long _lastRetryMs = 0;
+  uint32_t _reconnects = 0;
+  bool _everConnected = false;
 
   bool _connectRequested = false;
   String _newSsid;

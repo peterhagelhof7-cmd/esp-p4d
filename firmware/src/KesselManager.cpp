@@ -19,6 +19,8 @@ void KesselManager::begin() {}
 
 void KesselManager::result(bool ok) {
   _polls++;
+  _roundPolls++;
+  if (!ok) _roundErrors++;
   if (ok) {
     _failures = 0;
     _lastOkMs = millis();
@@ -206,7 +208,18 @@ bool KesselManager::stepValue() {
   static unsigned long lastMs = 0;
   if (_values.empty() || millis() - lastMs < kValueSpacingMs) return false;
   lastMs = millis();
-  if (_nextValue >= _values.size()) _nextValue = 0;
+  if (_nextValue >= _values.size()) {
+    // Runde komplett (inkl. Zustand/Fehlerpuffer dazwischen): Dauer und Fehler merken
+    if (_roundStartMs) {
+      std::lock_guard<std::mutex> lock(_mu);
+      _roundMs = lastMs - _roundStartMs;
+      _lastRoundPolls = _roundPolls;
+      _lastRoundErrors = _roundErrors;
+    }
+    _roundStartMs = lastMs;
+    _roundPolls = _roundErrors = 0;
+    _nextValue = 0;
+  }
   uint16_t addr = _values[_nextValue].spec.address;
   int16_t raw;
   bool ok = _p4.getValue(addr, raw);
@@ -263,6 +276,12 @@ String KesselManager::statusJson() {
   o += _polls;
   o += ",\"failures\":";
   o += _errorsCount;
+  o += ",\"roundSec\":";
+  o += _roundMs ? String(_roundMs / 1000.0, 1) : String("null");
+  o += ",\"roundPolls\":";
+  o += _lastRoundPolls;
+  o += ",\"roundFailures\":";
+  o += _lastRoundErrors;
   o += ",\"mode\":";
   appendEscaped(o, _modeText);
   o += ",\"state\":";

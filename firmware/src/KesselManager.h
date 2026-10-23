@@ -65,6 +65,9 @@ class KesselManager {
   enum CatalogState { catNone, catLoading, catReady } _catalog = catNone;
   bool _rescanRequested = false;
   size_t _nextValue = 0;
+  // Vitalwerte COM1: Dauer und Fehler der letzten vollstaendigen Werte-Runde
+  unsigned long _roundStartMs = 0, _roundMs = 0;
+  uint32_t _roundPolls = 0, _roundErrors = 0, _lastRoundPolls = 0, _lastRoundErrors = 0;
 
   unsigned long _lastCheckMs = 0;
 

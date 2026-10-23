@@ -6,7 +6,7 @@ auslesen und als eigenständiges Gerät (Weboberfläche + später MQTT) darstell
 
 Portierung des seriellen COM1-Protokolls aus **[horchi/linux-p4d](https://github.com/horchi/linux-p4d)**.
 
-> **Status v0.2.3:** COM1 (Zustand, Werte-Katalog, Werte, Fehlerpuffer), WLAN mit
+> **Status v0.3.0:** COM1 (Zustand, Werte-Katalog, Werte, Fehlerpuffer), WLAN mit
 > Einrichtungs-Access-Point, Weboberfläche mit COM1-Konsole, Einstellungs-Backup, OTA und
 > API für home-central gebaut. **Seit 2026-10-23 am Kessel (S3200, SW 50.04.05.07) im Betrieb.** Historie (CSV) und MQTT folgen.
 > Siehe [`machbarkeitsanalyse.md`](machbarkeitsanalyse.md) und [`protokoll.md`](protokoll.md).
@@ -105,6 +105,21 @@ Auswahl `sel` und `nc:true` bei fehlendem Fühler. `GET /api/v1/status` – Ger�
 Uhrzeit) und Kessel inkl. anstehender Störung `active` (oder `null`) und den 20 neuesten
 Einträgen des Fehlerpuffers `errors` (neueste zuerst; der Kessel selbst liefert älteste zuerst,
 deshalb wird der ganze Puffer gelesen).
+
+Vitalwerte (ab 0.3.0) in `/api/v1/status` bzw. `/api/status`:
+
+| Feld | Bedeutung |
+|---|---|
+| `device.wlan.rssi`, `bssid`, `channel` | Signal, verbundener Access Point, Kanal |
+| `device.wlan.reconnects`, `connectedFor` | WLAN-Abbrüche seit Start, Sekunden seit der letzten Verbindung (−1 = getrennt) |
+| `device.vital.chipTemp` | interne Chip-Temperatur (°C, ±3 °C, liegt über der Raumtemperatur) |
+| `device.vital.resetReason`, `abnormalReset`, `boots` | Grund des letzten Neustarts (`poweron`, `sw`, `panic`, `task_wdt`, `brownout` …), Absturz/Watchdog/Spannungseinbruch ja/nein, Neustart-Zähler (NVS) |
+| `device.vital.heapFree`, `heapMin`, `heapMaxBlock` | freier Speicher jetzt, kleinster seit Start, größter zusammenhängender Block (Bytes) |
+| `device.vital.psramSize`, `psramFree` | PSRAM (Bytes) |
+| `device.vital.loopMaxMs`, `stackFree` | längster Durchlauf der Hauptschleife seit Start, kleinste Stack-Reserve (Bytes) |
+| `device.vital.fsUsed`, `fsTotal` | Dateisystem (Bytes) |
+| `device.vital.ntpSyncAgo` | Sekunden seit der letzten NTP-Synchronisierung (`null` = noch nie) |
+| `kessel.roundSec`, `roundPolls`, `roundFailures` | Dauer der letzten kompletten Werte-Runde, COM1-Abfragen und -Fehler darin |
 
 Abfrage: Zustand alle 10 s, Fehlerpuffer alle 5 min, alle Werte reihum (eine Runde dauert je
 nach Anzahl einige Sekunden). Ein Abruf durch home-central alle 15–60 s reicht.

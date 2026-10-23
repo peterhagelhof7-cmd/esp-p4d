@@ -70,10 +70,13 @@ static const char kStatusPage[] PROGMEM = P4_HEAD("ESP-P4d", NAV_S) R"HTML(
 <p class="hint" id="vhint"></p></div>
 <div class="card"><h2>WLAN</h2><table class="kv">
 <tr><td>Netz</td><td id="w_ssid">&ndash;</td></tr><tr><td>Adresse</td><td id="w_ip">&ndash;</td></tr>
-<tr><td>Signal</td><td id="w_rssi">&ndash;</td></tr><tr><td>Name im Netz</td><td id="w_host">&ndash;</td></tr></table></div>
+<tr><td>Signal</td><td id="w_rssi">&ndash;</td></tr><tr><td>Access Point</td><td id="w_ap">&ndash;</td></tr>
+<tr><td>Verbindungsabbr&uuml;che</td><td id="w_rec">&ndash;</td></tr><tr><td>Name im Netz</td><td id="w_host">&ndash;</td></tr></table></div>
 <div class="card"><h2>Ger&auml;t</h2><table class="kv">
 <tr><td>Firmware</td><td id="d_fw">&ndash;</td></tr><tr><td>Uhrzeit</td><td id="d_time">&ndash;</td></tr>
-<tr><td>Laufzeit</td><td id="d_up">&ndash;</td></tr><tr><td>Freier Speicher</td><td id="d_heap">&ndash;</td></tr></table></div>
+<tr><td>Laufzeit</td><td id="d_up">&ndash;</td></tr><tr><td>Letzter Neustart</td><td id="d_rst">&ndash;</td></tr>
+<tr><td>Chip-Temperatur</td><td id="d_temp">&ndash;</td></tr><tr><td>Freier Speicher</td><td id="d_heap">&ndash;</td></tr>
+<tr><td>COM1 letzte Runde</td><td id="d_round">&ndash;</td></tr></table></div>
 </main><script>)HTML" P4_JS_COMMON R"HTML(
 const dur=s=>{const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return (d?d+' d ':'')+h+' h '+m+' min'};
 async function load(){try{const s=await (await fetch('/api/status',{cache:'no-store'})).json();const d=s.device,k=s.kessel;
@@ -85,7 +88,13 @@ $('k_ver').textContent=k.version||'–';$('k_last').textContent=k.lastOkAgo<0?'n
 $('w_ssid').innerHTML=d.wlan.connected?esc(d.wlan.ssid):'<span class="bad">nicht verbunden</span>';
 $('w_ip').textContent=d.wlan.connected?d.wlan.ip+(d.wlan.static?' (fest)':' (DHCP)'):'–';$('w_rssi').textContent=d.wlan.connected?d.wlan.rssi+' dBm':'–';
 $('w_host').textContent='http://'+d.wlan.hostname+'.local';
-$('d_fw').textContent=d.firmware;$('d_up').textContent=dur(d.uptime);$('d_heap').textContent=Math.round(d.heap/1024)+' KB';
+$('w_ap').textContent=d.wlan.bssid?d.wlan.bssid+' (Kanal '+d.wlan.channel+')':'–';$('w_rec').textContent=d.wlan.reconnects+' seit Start';
+const vt=d.vital||{},RST={poweron:'Strom an',ext:'Reset-Taste',sw:'Software/Update',panic:'Absturz',int_wdt:'Watchdog',task_wdt:'Watchdog',wdt:'Watchdog',brownout:'Spannungseinbruch'};
+$('d_fw').textContent=d.firmware;$('d_up').textContent=dur(d.uptime);
+$('d_rst').innerHTML=(vt.abnormalReset?'<span class="bad">':'<span>')+esc(RST[vt.resetReason]||vt.resetReason)+'</span> <span class="mute">(Start Nr. '+vt.boots+')</span>';
+$('d_temp').textContent=vt.chipTemp==null?'–':String(vt.chipTemp).replace('.',',')+' °C';
+$('d_heap').textContent=Math.round(d.heap/1024)+' KB (kleinster '+Math.round(vt.heapMin/1024)+' KB)';
+$('d_round').textContent=k.roundSec==null?'–':String(k.roundSec).replace('.',',')+' s, '+k.roundFailures+' Fehler bei '+k.roundPolls+' Abfragen';
 $('d_time').textContent=d.time?new Date(d.time*1000).toLocaleString('de-DE'):'noch nicht gestellt (NTP)';
 $('pw').hidden=!d.defaultPassword;
 $('ap').hidden=!d.ap.active;$('ap').innerHTML='Einrichtungs-WLAN <b>'+esc(d.ap.ssid)+'</b> ist aktiv (http://192.168.4.1). WLAN unter <a href="/settings">Einstellungen</a> eintragen.';
