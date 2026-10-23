@@ -11,7 +11,8 @@
 // Transaktion (max. ca. 2 s), damit Watchdog und Netz nicht leiden:
 //  - ohne Verbindung: alle 10 s cmdCheck; danach Version + Werte-Katalog
 //    (0x31/0x32: welche Werte der Kessel kennt, mit Name/Einheit/Faktor)
-//  - Zustand (0x51) alle 10 s, Fehlerpuffer (0x47/0x48) alle 5 min
+//  - Zustand (0x51) alle 10 s, Fehlerpuffer (0x47/0x48) alle 5 min (ganz
+//    gelesen, die 20 neuesten bleiben, neueste zuerst)
 //  - dazwischen reihum alle Katalog-Werte (0x30), real = roh / Faktor
 //  - 3 Fehlschlaege in Folge -> "keine Verbindung", Werte gelten als veraltet
 // Die Weboberflaeche liest ueber die *Json()-Funktionen (mit Mutex).
@@ -58,6 +59,7 @@ class KesselManager {
   std::vector<P4Com::ErrorInfo> _errors, _errorsNew;
   bool _errorsLoading = false;
   unsigned long _errorsMs = 0;
+  uint16_t _errorReads = 0;  // Eintraege im laufenden Durchgang
 
   std::vector<Value> _values, _valuesNew;  // _valuesNew = Katalog im Aufbau
   enum CatalogState { catNone, catLoading, catReady } _catalog = catNone;
@@ -70,6 +72,8 @@ class KesselManager {
   bool stepCatalog();
   bool stepErrors();
   bool stepValue();
+  const P4Com::ErrorInfo* activeError() const;  // _mu muss gehalten sein
+  static bool sensorMissing(const Value& v);
   static void appendNumber(String& out, const Value& v);
   static void appendEscaped(String& out, const char* s);
 };

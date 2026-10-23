@@ -52,6 +52,8 @@ pre{white-space:pre-wrap;font-size:12px;background:#f3f5f8;padding:8px;border-ra
 
 #define P4_JS_COMMON \
   "const $=i=>document.getElementById(i);const esc=s=>String(s==null?'':s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));" \
+  "const fmt=x=>x.nc?'<span class=\"mute\">F&uuml;hler fehlt</span>':x.v==null?'–':x.v+' '+esc(x.u);" \
+  "const empty=x=>x.nc||x.v===0;" \
   "const post=(u,d)=>fetch(u,{method:'POST',body:new URLSearchParams(d)}).then(async r=>{const t=await r.text();if(!r.ok)throw new Error(t);return t});"
 
 static const char kStatusPage[] PROGMEM = P4_HEAD("ESP-P4d", NAV_S) R"HTML(
@@ -78,7 +80,7 @@ async function load(){try{const s=await (await fetch('/api/status',{cache:'no-st
 $('name').textContent=d.systemName;document.title=d.systemName;
 $('k_conn').innerHTML=k.connected?'<span class="ok">verbunden</span>':'<span class="bad">keine Antwort</span>';
 $('k_mode').textContent=k.mode||'–';$('k_state').textContent=k.state||'–';
-const e=(k.errors||[])[0];$('k_err').innerHTML=e&&e.state==1?'<span class="bad">'+esc(e.text)+'</span> <span class="mute">('+esc(e.time)+')</span>':'keine';
+const e=k.active;$('k_err').innerHTML=e?'<span class="bad">'+esc(e.text)+'</span> <span class="mute">('+esc(e.time)+')</span>':'keine';
 $('k_ver').textContent=k.version||'–';$('k_last').textContent=k.lastOkAgo<0?'noch nie':'vor '+k.lastOkAgo+' s';
 $('w_ssid').innerHTML=d.wlan.connected?esc(d.wlan.ssid):'<span class="bad">nicht verbunden</span>';
 $('w_ip').textContent=d.wlan.connected?d.wlan.ip+(d.wlan.static?' (fest)':' (DHCP)'):'–';$('w_rssi').textContent=d.wlan.connected?d.wlan.rssi+' dBm':'–';
@@ -88,8 +90,8 @@ $('d_time').textContent=d.time?new Date(d.time*1000).toLocaleString('de-DE'):'no
 $('pw').hidden=!d.defaultPassword;
 $('ap').hidden=!d.ap.active;$('ap').innerHTML='Einrichtungs-WLAN <b>'+esc(d.ap.ssid)+'</b> ist aktiv (http://192.168.4.1). WLAN unter <a href="/settings">Einstellungen</a> eintragen.';
 const v=await (await fetch('/api/values',{cache:'no-store'})).json();
-const sel=v.values.filter(x=>x.sel);const list=sel.length?sel:v.values.slice(0,12);
-$('vals').innerHTML=list.map(x=>'<tr><td>'+esc(x.n)+'</td><td class="num">'+(x.v==null?'–':x.v+' '+esc(x.u))+'</td></tr>').join('');
+const sel=v.values.filter(x=>x.sel);const list=sel.length?sel:v.values.filter(x=>!empty(x)).slice(0,12);
+$('vals').innerHTML=list.map(x=>'<tr><td>'+esc(x.n)+'</td><td class="num">'+fmt(x)+'</td></tr>').join('');
 $('vhint').innerHTML=!v.values.length?(k.catalog=='loading'?'Werte-Katalog wird gelesen ('+k.catalogLoaded+') &hellip;':'Noch keine Werte &ndash; die Heizung muss an COM1 antworten.'):
  (sel.length?'':'Keine Auswahl &ndash; hier die ersten 12. Auswahl unter <a href="/values">Werte</a>.');
 }catch(e){}}
@@ -100,21 +102,23 @@ static const char kValuesPage[] PROGMEM = P4_HEAD("Werte", NAV_V) R"HTML(
 <div class="card"><h2>Alle Werte der Heizung</h2>
 <p class="hint">Mit Haken markierte Werte gehen an home-central (<span class="mono">/api/v1/summary</span>) und stehen auf der Startseite. Ohne Haken bekommt home-central alle Werte. Speichern fragt nach dem Einstellungs-Passwort.</p>
 <input id="flt" placeholder="Filter (Name oder Adresse)">
+<label><input type="checkbox" id="hide" checked style="width:auto"> Leere Werte ausblenden (0 oder F&uuml;hler fehlt &ndash; meist nicht vorhandene Heizkreise/Speicher; markierte bleiben sichtbar)</label>
 <table><thead><tr><th></th><th>Wert</th><th class="num">Aktuell</th><th class="mono">Adresse</th></tr></thead><tbody id="rows"></tbody></table>
 <button id="save">Auswahl speichern</button> <button class="sec" id="none">Keine Auswahl</button><p class="hint" id="msg"></p>
 <p class="hint" id="info"></p></div>
 </main><script>)HTML" P4_JS_COMMON R"HTML(
 let vals=[],sel=new Set(),loaded=false;
 function draw(){const f=$('flt').value.toLowerCase();
-$('rows').innerHTML=vals.filter(x=>!f||x.n.toLowerCase().includes(f)||x.k.toLowerCase().includes(f)).map(x=>
- '<tr><td><input type="checkbox" data-k="'+x.k+'"'+(sel.has(x.k)?' checked':'')+'></td><td>'+esc(x.n)+'</td><td class="num">'+(x.v==null?'–':x.v+' '+esc(x.u))+
+const hide=$('hide').checked;
+$('rows').innerHTML=vals.filter(x=>(!f||x.n.toLowerCase().includes(f)||x.k.toLowerCase().includes(f))&&(!hide||sel.has(x.k)||!empty(x))).map(x=>
+ '<tr><td><input type="checkbox" data-k="'+x.k+'"'+(sel.has(x.k)?' checked':'')+'></td><td>'+esc(x.n)+'</td><td class="num">'+fmt(x)+
  '</td><td class="mono mute">'+x.k+'</td></tr>').join('');}
 async function load(){try{const v=await (await fetch('/api/values',{cache:'no-store'})).json();vals=v.values;
  if(!loaded){sel=new Set(vals.filter(x=>x.sel).map(x=>x.k));loaded=vals.length>0}
- $('info').textContent=vals.length+' Werte'+(v.connected?'':' – Heizung antwortet gerade nicht, Werte veraltet');
+ $('info').textContent=vals.length+' Werte ('+vals.filter(empty).length+' leer)'+(v.connected?'':' – Heizung antwortet gerade nicht, Werte veraltet');
  if(document.activeElement.type!='checkbox')draw();}catch(e){}}
 $('rows').onchange=e=>{const k=e.target.dataset.k;if(!k)return;e.target.checked?sel.add(k):sel.delete(k)};
-$('flt').oninput=draw;
+$('flt').oninput=draw;$('hide').onchange=draw;
 $('save').onclick=()=>post('/api/selection',{sel:[...sel].join(',')}).then(t=>$('msg').textContent=t).catch(e=>$('msg').textContent=e.message);
 $('none').onclick=()=>{sel.clear();draw()};
 load();setInterval(load,5000);

@@ -6,9 +6,9 @@ auslesen und als eigenständiges Gerät (Weboberfläche + später MQTT) darstell
 
 Portierung des seriellen COM1-Protokolls aus **[horchi/linux-p4d](https://github.com/horchi/linux-p4d)**.
 
-> **Status v0.2.1:** COM1 (Zustand, Werte-Katalog, Werte, Fehlerpuffer), WLAN mit
+> **Status v0.2.2:** COM1 (Zustand, Werte-Katalog, Werte, Fehlerpuffer), WLAN mit
 > Einrichtungs-Access-Point, Weboberfläche mit COM1-Konsole, Einstellungs-Backup, OTA und
-> API für home-central gebaut. **Am Kessel noch nicht getestet.** Historie (CSV) und MQTT folgen.
+> API für home-central gebaut. **Seit 2026-10-23 am Kessel (S3200, SW 50.04.05.07) im Betrieb.** Historie (CSV) und MQTT folgen.
 > Siehe [`machbarkeitsanalyse.md`](machbarkeitsanalyse.md) und [`protokoll.md`](protokoll.md).
 
 ## Zielbild
@@ -94,13 +94,17 @@ wird beim ersten Start zufällig erzeugt). Ohne/mit falschem Schlüssel: `401`.
 
 - `ts` = Unix-Zeit (NTP), `null` solange die Uhr nicht gestellt ist
 - `online:false` = Heizung antwortet nicht auf COM1 → alle `v` sind `null`
-- `error` = Text der anstehenden Störung (neuester Eintrag im Fehlerpuffer mit Zustand
-  „gekommen“) – Auslegung am Kessel noch zu prüfen
-- `k` = Adresse im Kessel (stabil), `n`/`u` = Name/Einheit wie vom Kessel geliefert
+- `error` = Text der anstehenden Störung: neuester Eintrag „gekommen“ (Zustand 1), zu dem
+  danach kein „gegangen“ (4) derselben Nummer kam; „quittiert“ (2) allein beendet sie nicht
+- `k` = Adresse im Kessel (stabil), `n`/`u` = Name/Einheit wie vom Kessel geliefert (nur „°“
+  wird zu „°C“); jede Adresse kommt nur einmal vor (der Kessel-Katalog enthält Dubletten)
+- `v` = `null` auch bei nicht angeschlossenem Fühler (Kessel meldet dann 127,0 °C)
 
-`GET /api/v1/values` – alle Werte mit Faktor `f`, Typ `t`, Rohwert `raw`, Alter `age` (s) und
-Auswahl `sel`. `GET /api/v1/status` – Gerät (Firmware, WLAN, Uhrzeit) und Kessel inkl.
-Fehlerpuffer.
+`GET /api/v1/values` – alle Werte mit Faktor `f`, Typ `t`, Rohwert `raw`, Alter `age` (s),
+Auswahl `sel` und `nc:true` bei fehlendem Fühler. `GET /api/v1/status` – Gerät (Firmware, WLAN,
+Uhrzeit) und Kessel inkl. anstehender Störung `active` (oder `null`) und den 20 neuesten
+Einträgen des Fehlerpuffers `errors` (neueste zuerst; der Kessel selbst liefert älteste zuerst,
+deshalb wird der ganze Puffer gelesen).
 
 Abfrage: Zustand alle 10 s, Fehlerpuffer alle 5 min, alle Werte reihum (eine Runde dauert je
 nach Anzahl einige Sekunden). Ein Abruf durch home-central alle 15–60 s reicht.

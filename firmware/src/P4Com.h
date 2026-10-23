@@ -41,8 +41,9 @@ class P4Com {
   struct ErrorInfo {
     uint16_t number = 0;
     uint8_t info = 0;
-    uint8_t state = 0;     // 1 = gekommen, 4 = gegangen, 8 = quittiert (p4d)
+    uint8_t state = 0;     // 1 = gekommen, 2 = quittiert, 4 = gegangen (am Kessel gesehen: 1/2/4)
     char time[20] = "";    // "TT.MM.JJ hh:mm:ss" wie vom Kessel geliefert
+    uint32_t sortKey = 0;  // Zeitpunkt als Zahl (Sekunden seit 2000, grob) zum Sortieren
     char text[48] = "";
   };
 

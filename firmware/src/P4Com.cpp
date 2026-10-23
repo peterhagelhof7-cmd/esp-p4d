@@ -234,6 +234,8 @@ P4Com::ListResult P4Com::getValueSpec(bool first, ValueSpec& v) {
       v.unit[b - a - 1] = 0;
     }
   }
+  // S3200 liefert bei Temperaturen nur "°" (2 Byte Einheit)
+  if (strcmp(v.unit, "\xC2\xB0") == 0) strlcpy(v.unit, "\xC2\xB0" "C", sizeof(v.unit));
   return listOk;
 }
 
@@ -251,6 +253,9 @@ P4Com::ListResult P4Com::getError(bool first, ErrorInfo& e) {
   e.state = resp[4];
   snprintf(e.time, sizeof(e.time), "%02u.%02u.%02u %02u:%02u:%02u", resp[8], resp[9], resp[10], resp[7], resp[6],
            resp[5]);
+  // Monat mit 31 Tagen gerechnet: reicht zum Vergleichen, ist kein echter Zeitstempel
+  e.sortKey = ((((uint32_t)resp[10] * 12 + resp[9]) * 31 + resp[8]) * 24 + resp[7]) * 3600UL +
+              (uint32_t)resp[6] * 60 + resp[5];
   latin1ToUtf8(resp + 11, len - 12, e.text, sizeof(e.text));
   return listOk;
 }

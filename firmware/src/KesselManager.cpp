@@ -12,6 +12,7 @@ constexpr unsigned long kValueSpacingMs = 50;        // Pause zwischen Einzelwer
 constexpr uint8_t kMaxFailures = 3;
 constexpr size_t kMaxErrors = 20;
 constexpr size_t kMaxValues = 400;                   // Schutz gegen endlose Listen
+constexpr uint16_t kMaxErrorReads = 500;             // dito fuer den Fehlerpuffer
 }  // namespace
 
 void KesselManager::begin() {}
@@ -91,6 +92,7 @@ void KesselManager::loop() {
       _errorsMs = now;
       _errorsLoading = true;
       _errorsNew.clear();
+      _errorReads = 0;
     }
     stepErrors();
     return;
@@ -109,9 +111,15 @@ bool KesselManager::stepCatalog() {
     return false;
   }
   if (r == P4Com::listOk) {
-    Value v;
-    v.spec = spec;
-    _valuesNew.push_back(v);
+    // Der Katalog ist nach Menues gegliedert, manche Adressen kommen mehrfach
+    // vor (z. B. Kesseltemperatur) -> nur den ersten Eintrag behalten
+    bool dup = std::any_of(_valuesNew.begin(), _valuesNew.end(),
+                           [&](const Value& x) { return x.spec.address == spec.address; });
+    if (!dup) {
+      Value v;
+      v.spec = spec;
+      _valuesNew.push_back(v);
+    }
     // leere Eintraege (listSkip) zaehlen nicht, die Liste geht trotzdem weiter
     if (_valuesNew.size() < kMaxValues) return true;
   } else if (r == P4Com::listSkip) {
@@ -138,24 +146,60 @@ bool KesselManager::stepCatalog() {
   return true;
 }
 
+// Der Kessel liefert den Fehlerpuffer aelteste zuerst. Deshalb die ganze Liste
+// lesen und nur die kMaxErrors neuesten behalten (nach Zeitstempel, bei
+// gleicher Zeit zaehlt die Position in der Liste).
 bool KesselManager::stepErrors() {
   P4Com::ErrorInfo e;
-  P4Com::ListResult r = _p4.getError(_errorsNew.empty(), e);
+  P4Com::ListResult r = _p4.getError(_errorReads == 0, e);
   result(r != P4Com::listFail);
   if (r == P4Com::listFail) {
     _errorsLoading = false;
     return false;
   }
-  if (r == P4Com::listOk && _errorsNew.size() < kMaxErrors) {
-    _errorsNew.push_back(e);
+  if (r != P4Com::listEnd && ++_errorReads < kMaxErrorReads) {
+    if (r == P4Com::listOk) {
+      _errorsNew.push_back(e);
+      if (_errorsNew.size() > kMaxErrors) {
+        // aeltesten Eintrag verwerfen (min_element nimmt bei Gleichstand den vorderen)
+        _errorsNew.erase(std::min_element(_errorsNew.begin(), _errorsNew.end(),
+                                          [](const P4Com::ErrorInfo& a, const P4Com::ErrorInfo& b) {
+                                            return a.sortKey < b.sortKey;
+                                          }));
+      }
+    }
     return true;
   }
-  if (r == P4Com::listSkip) return true;
+  // neueste zuerst
+  std::reverse(_errorsNew.begin(), _errorsNew.end());
+  std::stable_sort(_errorsNew.begin(), _errorsNew.end(),
+                   [](const P4Com::ErrorInfo& a, const P4Com::ErrorInfo& b) { return a.sortKey > b.sortKey; });
   std::lock_guard<std::mutex> lock(_mu);
   _errors.swap(_errorsNew);
   _errorsNew.clear();
   _errorsLoading = false;
   return true;
+}
+
+// Anstehende Stoerung: neuester "gekommen"-Eintrag (1), zu dem danach kein
+// "gegangen" (4) derselben Nummer folgt. Quittiert (2) allein beendet sie nicht.
+const P4Com::ErrorInfo* KesselManager::activeError() const {
+  std::vector<uint16_t> gone;
+  for (const P4Com::ErrorInfo& e : _errors) {  // neueste zuerst
+    bool isGone = std::find(gone.begin(), gone.end(), e.number) != gone.end();
+    if (e.state == 4) {
+      if (!isGone) gone.push_back(e.number);
+    } else if (e.state == 1 && !isGone) {
+      return &e;
+    }
+  }
+  return nullptr;
+}
+
+// Fuehler nicht angeschlossen: Kessel meldet dann 127,0 °C (roh 254 bei Faktor 2)
+bool KesselManager::sensorMissing(const Value& v) {
+  uint16_t f = v.spec.factor ? v.spec.factor : 1;
+  return v.valid && strncmp(v.spec.unit, "\xC2\xB0", 2) == 0 && v.raw == (int32_t)127 * f;
 }
 
 bool KesselManager::stepValue() {
@@ -227,6 +271,19 @@ String KesselManager::statusJson() {
   o += _catalog == catReady ? "ready" : (_catalog == catLoading ? "loading" : "none");
   o += "\",\"catalogLoaded\":";
   o += _catalog == catLoading ? _valuesNew.size() : _values.size();
+  o += ",\"active\":";
+  const P4Com::ErrorInfo* a = activeError();
+  if (a) {
+    o += "{\"nr\":";
+    o += a->number;
+    o += ",\"time\":";
+    appendEscaped(o, a->time);
+    o += ",\"text\":";
+    appendEscaped(o, a->text);
+    o += "}";
+  } else {
+    o += "null";
+  }
   o += ",\"errors\":[";
   for (size_t i = 0; i < _errors.size(); i++) {
     const P4Com::ErrorInfo& e = _errors[i];
@@ -273,6 +330,7 @@ String KesselManager::valuesJson(const std::vector<uint16_t>& selected) {
     o += v.raw;
     o += ",\"age\":";
     o += v.valid ? String((now - v.readMs) / 1000) : String("null");
+    if (sensorMissing(v)) o += ",\"nc\":true";
     o += ",\"sel\":";
     o += std::find(selected.begin(), selected.end(), v.spec.address) != selected.end() ? "true" : "false";
     o += "}";
@@ -295,10 +353,9 @@ String KesselManager::summaryJson(const std::vector<uint16_t>& selected, const S
   appendEscaped(o, _modeText);
   o += ",\"state\":";
   appendEscaped(o, _stateText);
-  // Annahme (am Kessel noch zu pruefen): erster Eintrag des Fehlerpuffers ist
-  // der neueste; state 1 = gekommen = Stoerung steht an.
   o += ",\"error\":";
-  if (!_errors.empty() && _errors[0].state == 1) appendEscaped(o, _errors[0].text);
+  const P4Com::ErrorInfo* a = activeError();
+  if (a) appendEscaped(o, a->text);
   else o += "null";
   o += ",\"values\":[";
   bool first = true;
@@ -312,8 +369,9 @@ String KesselManager::summaryJson(const std::vector<uint16_t>& selected, const S
     o += "\",\"n\":";
     appendEscaped(o, v.spec.description);
     o += ",\"v\":";
-    // veraltete Werte (keine Verbindung) als null, damit niemand alte Zahlen anzeigt
-    if (_connected) appendNumber(o, v);
+    // veraltete Werte (keine Verbindung) und fehlende Fuehler als null,
+    // damit niemand alte oder unsinnige Zahlen anzeigt
+    if (_connected && !sensorMissing(v)) appendNumber(o, v);
     else o += "null";
     o += ",\"u\":";
     appendEscaped(o, v.spec.unit);
