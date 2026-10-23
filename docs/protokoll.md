@@ -1,11 +1,11 @@
 # Fröling P4 / Lambdatronic S3200 — Protokoll-Referenz
 
-Aus dem Quellcode von [horchi/linux-p4d](https://github.com/horchi/linux-p4d) (GPL) extrahiert,
+Aus dem Quellcode von [horchi/linux-p4d](https://github.com/horchi/linux-p4d) (Jörg Wendel, GPL-2.0) extrahiert,
 2026-08-14. Quellen jeweils als `datei:zeile` angegeben. Diese Datei ist die Grundlage fürs
 ESP-Protokoll-Modul (Weg B).
 
 > **Lizenz:** Alle Konstanten/Algorithmen stammen aus GPL-Code → das ESP-Modul, das sie
-> nachbildet, wird ebenfalls GPL (siehe machbarkeitsanalyse.md §8).
+> nachbildet, steht ebenfalls unter der GPL-2.0 (siehe [machbarkeitsanalyse.md](machbarkeitsanalyse.md) §8).
 
 ---
 

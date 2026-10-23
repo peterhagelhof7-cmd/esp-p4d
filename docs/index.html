@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP-P4d Web-Flasher</title>
+<meta name="description" content="ESP-P4d: Fröling Lambdatronic S3200 über COM1 mit einem Wemos S2 Mini (ESP32-S2) auslesen – Firmware direkt aus dem Browser installieren.">
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<style>
+  :root {
+    --bg: #0f1420; --card: #182033; --border: #2a3550; --fg: #e6e9f2;
+    --muted: #9aa4bf; --accent: #46c46a; --warn: #e0a83c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px; background: var(--bg); color: var(--fg);
+    font: 15px/1.55 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 0 0 12px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px 22px; margin: 0 0 18px;
+  }
+  .card p { margin: 8px 0; }
+  ol, ul { margin: 8px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+  .note {
+    background: #1d2740; border-left: 3px solid var(--accent); border-radius: 6px;
+    padding: 10px 14px; margin: 14px 0; color: var(--muted); font-size: 14px;
+  }
+  .warnbox { border-left-color: var(--warn); }
+  esp-web-install-button button, button {
+    background: var(--accent); color: #08101f; border: 0; border-radius: 8px;
+    padding: 10px 18px; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  td, th { padding: 7px 6px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  code { background: #0d1322; padding: 1px 6px; border-radius: 4px; word-break: break-all; }
+  a { color: var(--accent); }
+  .muted { color: var(--muted); }
+  footer { color: var(--muted); font-size: 13px; margin-top: 26px; text-align: center; }
+  .tablewrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ESP-P4d</h1>
+  <p class="sub">Fröling-Heizung (Lambdatronic S3200) über COM1 auslesen – Firmware für den
+    <b>Wemos S2 Mini</b> direkt aus dem Browser installieren. Version <b id="ver">…</b></p>
+
+  <div class="card">
+    <h2>1. Board in den Download-Modus</h2>
+    <ol>
+      <li>Taste <b>0</b> (BOOT) gedrückt halten und das Board per USB einstecken
+        <span class="muted">(oder: 0 halten, RST kurz drücken)</span>, dann 0 loslassen.</li>
+      <li>Der PC sieht jetzt einen Port „ESP32-S2“ (USB-ID <code>303A:0002</code>).</li>
+    </ol>
+    <div class="note">Ohne Download-Modus erscheint der S2 Mini mit fremder oder ohne Firmware oft gar
+      nicht als serieller Port – das ist normal.</div>
+  </div>
+
+  <div class="card">
+    <h2>2. Installieren</h2>
+    <esp-web-install-button manifest="manifest.json">
+      <button slot="activate">Installieren</button>
+      <span slot="unsupported"><div class="note warnbox">Dieser Browser kann kein <b>Web Serial</b>.
+        Bitte <b>Chrome, Edge oder Opera am Desktop</b> verwenden (nicht Firefox, Safari, iPhone/iPad).</div></span>
+      <span slot="not-allowed"><div class="note warnbox">Web Serial geht nur über HTTPS – diese Seite direkt
+        über GitHub Pages öffnen.</div></span>
+    </esp-web-install-button>
+    <p class="muted">Port „ESP32-S2“ wählen. Beim ersten Mal <b>„Gerät löschen“</b> anhaken.</p>
+    <p>Nach „Installation abgeschlossen“ das Board <b>einmal ab- und wieder anstecken</b> (oder RST drücken) –
+      der S2 startet nach dem Flashen nicht von selbst.</p>
+  </div>
+
+  <div class="card">
+    <h2>3. Einrichten</h2>
+    <ol>
+      <li>Mit dem Handy ins WLAN <code>esp-p4d-setup</code> (Passwort <code>esp-p4d-setup</code>) –
+        die Seite öffnet sich meist von selbst, sonst <code>http://192.168.4.1</code>.</li>
+      <li><b>Einstellungen</b> (Benutzer <code>admin</code>, Passwort <code>admin</code>) → Netze suchen →
+        WLAN wählen → Verbinden. Danach erreichbar unter <code>http://esp-p4d.local</code>.</li>
+      <li>Einstellungs-Passwort <b>sofort ändern</b>.</li>
+      <li>MAX3232 an COM1 des Kessels anschließen (siehe
+        <a href="https://github.com/peterhagelhof7-cmd/esp-p4d/blob/main/docs/verdrahtung.pdf">Verdrahtung</a>).</li>
+    </ol>
+    <p>Updates später ohne Flasher: Weboberfläche → <i>Einstellungen → Firmware-Update</i> mit der
+      <code>.bin</code> aus den
+      <a href="https://github.com/peterhagelhof7-cmd/esp-p4d/releases">Releases</a>.</p>
+    <p>Ausführlich: <a href="https://github.com/peterhagelhof7-cmd/esp-p4d/blob/main/docs/admin-guide.md">Admin-Guide</a></p>
+  </div>
+
+  <div class="card">
+    <h2>Dateien</h2>
+    <div class="tablewrap"><table id="files"><tr><th>Datei</th><th>Adresse</th><th>Größe</th><th>SHA-256</th></tr></table></div>
+  </div>
+
+  <footer>
+    <a href="https://github.com/peterhagelhof7-cmd/esp-p4d">GitHub</a> · GPL-2.0 ·
+    Protokoll nach <a href="https://github.com/horchi/linux-p4d">linux-p4d</a> von Jörg Wendel
+  </footer>
+</main>
+<script>
+  fetch('fw/info.json').then(r => r.json()).then(j => {
+    document.getElementById('ver').textContent = 'v' + j.version;
+    const t = document.getElementById('files');
+    for (const [f, d] of Object.entries(j.files)) {
+      const tr = t.insertRow();
+      const a = document.createElement('a'); a.href = 'fw/' + f; a.textContent = f;
+      tr.insertCell().appendChild(a);
+      tr.insertCell().textContent = d.offset;
+      tr.insertCell().textContent = (d.size / 1024).toFixed(0) + ' KB';
+      const c = document.createElement('code'); c.textContent = d.sha256;
+      tr.insertCell().appendChild(c);
+    }
+  }).catch(() => { document.getElementById('ver').textContent = '?'; });
+</script>
+</body>
+</html>

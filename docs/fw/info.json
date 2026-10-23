@@ -1,0 +1,25 @@
+{
+    "version":  "0.3.0",
+    "files":  {
+                  "bootloader.bin":  {
+                                         "offset":  "0x1000",
+                                         "size":  13792,
+                                         "sha256":  "34d00eaa9ea72a54d1319d8a91f3b6c3acccf9478e85ba4c75f97034749dc977"
+                                     },
+                  "partitions.bin":  {
+                                         "offset":  "0x8000",
+                                         "size":  3072,
+                                         "sha256":  "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1"
+                                     },
+                  "boot_app0.bin":  {
+                                        "offset":  "0xE000",
+                                        "size":  8192,
+                                        "sha256":  "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+                                    },
+                  "firmware.bin":  {
+                                       "offset":  "0x10000",
+                                       "size":  965360,
+                                       "sha256":  "8d75f8c996dc0a292d88ec7bb7a55693f2a79a2f8fe27cf46b288091a71e04cd"
+                                   }
+              }
+}

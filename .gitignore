@@ -3,9 +3,11 @@ firmware/.pio/
 firmware/.pio-core/
 .pio/
 
-# Build-Artefakte
+# Build-Artefakte (ausser den Dateien fuer den Web-Flasher)
 *.bin
 *.elf
+!docs/fw/*.bin
+dist/
 
 # lokale Konfiguration
 firmware/sdkconfig.*

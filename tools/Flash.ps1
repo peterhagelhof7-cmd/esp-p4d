@@ -12,9 +12,9 @@
     Danach: bauen, flashen (Wemos S2 Mini, nativer USB VID 303A) und auf Wunsch
     den seriellen Monitor (USB-CDC) oeffnen.
 
-    Das Repo ist derzeit LOKAL (noch nicht auf GitHub). Das Skript baut mit dem
-    lokalen Stand; wenn ein Git-Remote existiert, zieht es vorher best-effort
-    'git pull --ff-only' (abschaltbar mit -NoUpdate).
+    Vor dem Bauen holt das Skript best-effort den neuesten Stand per
+    'git pull --ff-only' (abschaltbar mit -NoUpdate); ohne Git/Remote/Netz baut es
+    mit dem lokalen Stand.
 
 .PARAMETER Port         Optionaler COM-Port (sonst Auto-Erkennung).
 .PARAMETER Monitor      Nach dem Flashen den seriellen Monitor (115200) oeffnen.
@@ -137,8 +137,7 @@ function Install-PlatformIO {
 
 # Aktualisiert das Repo, in dem $dir liegt, best-effort per 'git pull --ff-only'
 # (ohne Git / kein Repo / kein Remote / offline -> nur Hinweis, kein Abbruch).
-# Mit -NoUpdate wird der Schritt uebersprungen. Solange das Repo lokal ist (noch
-# kein GitHub-Remote), macht 'git pull' nichts - das ist beabsichtigt.
+# Mit -NoUpdate wird der Schritt uebersprungen.
 function Update-Repo([string]$dir) {
     if ($NoUpdate) { return }
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return }

@@ -1,0 +1,28 @@
+{
+    "name":  "ESP-P4d",
+    "version":  "0.3.0",
+    "new_install_prompt_erase":  true,
+    "builds":  [
+                   {
+                       "chipFamily":  "ESP32-S2",
+                       "parts":  [
+                                     {
+                                         "path":  "fw/bootloader.bin",
+                                         "offset":  4096
+                                     },
+                                     {
+                                         "path":  "fw/partitions.bin",
+                                         "offset":  32768
+                                     },
+                                     {
+                                         "path":  "fw/boot_app0.bin",
+                                         "offset":  57344
+                                     },
+                                     {
+                                         "path":  "fw/firmware.bin",
+                                         "offset":  65536
+                                     }
+                                 ]
+                   }
+               ]
+}

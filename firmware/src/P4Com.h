@@ -2,8 +2,8 @@
 // ESP-P4d - Fröling P4 / Lambdatronic S3200 COM1-Service-Protokoll
 //
 // Read-only-Teilmenge, portiert aus horchi/linux-p4d (p4io.c/service.h/
-// lib/common.c) - siehe ../../protokoll.md. Weil aus GPL-Code abgeleitet, steht
-// dieses Modul (und damit die Firmware) unter der GPL.
+// lib/common.c) - siehe ../../docs/protokoll.md. Weil aus GPL-2.0-Code abgeleitet, steht
+// dieses Modul (und damit die Firmware) unter der GPL-2.0 (wie linux-p4d).
 //
 // Protokoll kompakt: 57600 8N1, Frame = id(2)=0x02FD + size(2,BE) + command(1)
 // + payload + crc(1). id roh (Sync), Rest byte-gestufft; CRC = XOR ueber

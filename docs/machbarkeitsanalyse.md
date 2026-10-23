@@ -72,8 +72,8 @@ Das ist **Standard-UART-Arbeit** und liegt voll im Rahmen eines ESP32-S2.
 
 ## 4. Lizenz-Hinweis
 
-`linux-p4d` steht unter der **GPL**. Wenn wir Protokoll-Code daraus übernehmen, wird die
-ESP-Firmware ein abgeleitetes Werk → **muss ebenfalls GPL** sein (abweichend von den
+`linux-p4d` steht unter der **GPL-2.0**. Wenn wir Protokoll-Code daraus übernehmen, wird die
+ESP-Firmware ein abgeleitetes Werk → **muss ebenfalls GPL-2.0** sein (abweichend von den
 sonst frei gehaltenen Familien-Projekten). Bewusst so einplanen.
 
 ## 5. Flash-Verschleiß („p4d hat die SD-Karte verschlissen") — gelöst
@@ -119,7 +119,8 @@ DB-auf-Speichermedium-Problem trotz Historie.
 
 ## 8. Lizenz-Entscheidung
 
-Firmware wird **GPL** (weil Protokoll-Code aus dem GPL-Projekt `linux-p4d` portiert wird). Für
+Firmware wird **GPL-2.0** (weil Protokoll-Code aus dem GPL-2.0-Projekt `linux-p4d` portiert wird;
+dort ist keine „oder spätere Version“-Klausel angegeben, daher bewusst dieselbe Version). Für
 ein ohnehin offen veröffentlichtes Projekt praktisch keine Bürde: GPL-Lizenzdatei beilegen,
 Herkunft nennen. Eigenes Repo → keine Auswirkung auf die anderen (nicht-GPL) Familien-Projekte.
 

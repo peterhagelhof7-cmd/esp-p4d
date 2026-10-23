@@ -1,6 +1,6 @@
 // ***************************************************************************
 // ESP-P4d - COM1-Protokoll (Implementierung), portiert aus horchi/linux-p4d (GPL).
-// Siehe P4Com.h und ../../protokoll.md.
+// Siehe P4Com.h und ../../docs/protokoll.md.
 // ***************************************************************************
 #include "P4Com.h"
 
